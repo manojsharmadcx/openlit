@@ -21,7 +21,7 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/openlit:latest .
+          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/openlit:latest -f src/client/Dockerfile src/client/
           docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/openlit:latest
 
       - name: Deploy to Azure Web App
