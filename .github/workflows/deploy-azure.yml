@@ -56,13 +56,13 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64/v8
           annotations: |
-            ${{ steps.meta.outputs.annotations }},
-            io.artifacthub.package.logo-url=https://github.com/openlit/.github/blob/main/profile/assets/favicon.png?raw=true,
-            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/openlit/openlit/main/README.md,
-            io.artifacthub.package.license=Apache-2.0,
-            org.opencontainers.image.vendor=OpenLIT,
-            io.artifacthub.package.maintainers=[{'name':'OpenLIT','email':'developers@openlit.io'}],
+            io.artifacthub.package.logo-url=https://github.com/openlit/.github/blob/main/profile/assets/favicon.png?raw=true
+            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/openlit/openlit/main/README.md
+            io.artifacthub.package.license=Apache-2.0
+            org.opencontainers.image.vendor=OpenLIT
+            io.artifacthub.package.maintainers=[{'name':'OpenLIT','email':'developers@openlit.io'}]
             io.artifacthub.package.keywords='Monitoring, Observability, LLMs, OpenAI, OpenTelemetry, Tracing'
+
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v2
