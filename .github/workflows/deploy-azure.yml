@@ -1,34 +1,74 @@
-name: Deploy OpenLit to Azure (Manual)
+name: Release OpenLIT
 
 on:
   workflow_dispatch:  # ✅ Manual trigger only
 
+env:
+  REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}  # Azure Container Registry
+
+permissions:
+  contents: write
+
 jobs:
-  deploy:
+  release:
+    name: Docker
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    env:
+      IMAGE_NAME: openlit
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to Azure
+      - name: Install cosign
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
+        with:
+          cosign-release: 'v2.2.2'
+      
+      - name: Extract version from tag
+        id: extract_version
+        run: echo "version=${GITHUB_REF#refs/tags/openlit-}" >> $GITHUB_ENV
+        env:
+          GITHUB_REF: ${{ github.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
+
+      # ✅ Log in to Azure with service principal using AZURE_CREDENTIALS
+      - name: Log in to Azure Container Registry (ACR)
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}  # AZURE_CREDENTIALS used here to authenticate
 
-      - name: Log in to Azure Container Registry
-        run: |
-          az acr login --name ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+      - name: Build and push Docker image to Azure ACR
+        id: build-and-push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/client/
+          provenance: false
+          file: ./src/client/Dockerfile
+          push: true  # Always push the image
+          tags: ${{ secrets.AZURE_CONTAINER_REGISTRY }}/openlit:latest  # Tag for Azure ACR
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64/v8
+          annotations: |
+            ${{ steps.meta.outputs.annotations }},
+            io.artifacthub.package.logo-url=https://github.com/openlit/.github/blob/main/profile/assets/favicon.png?raw=true,
+            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/openlit/openlit/main/README.md,
+            io.artifacthub.package.license=Apache-2.0,
+            org.opencontainers.image.vendor=OpenLIT,
+            io.artifacthub.package.maintainers=[{'name':'OpenLIT','email':'developers@openlit.io'}],
+            io.artifacthub.package.keywords='Monitoring, Observability, LLMs, OpenAI, OpenTelemetry, Tracing'
 
-      - name: Build and Push Docker Image
-        run: |
-          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/openlit:latest -f src/client/Dockerfile src/client/
-          docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/openlit:latest
-
-      - name: Deploy to Azure Web App
+      - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v2
         with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-          images: ${{ secrets.AZURE_CONTAINER_REGISTRY }}/openlit:latest
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}  # Your Azure App Service Name
+          images: ${{ secrets.AZURE_CONTAINER_REGISTRY }}/openlit:latest  # Use the pushed image
 
       - name: Configure App Service Environment Variables (Use SQLite)
         run: |
